@@ -2,6 +2,7 @@ package zap
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -20,6 +21,7 @@ type Node struct {
 	serviceType string
 	port        int
 	noDiscovery bool
+	tlsCfg      *tls.Config // nil = plaintext
 
 	// Discovery
 	discovery *mdns.Discovery
@@ -64,7 +66,8 @@ type NodeConfig struct {
 	Port        int
 	Metadata    map[string]string
 	Logger      *slog.Logger
-	NoDiscovery bool // Disable mDNS discovery (use ConnectDirect only)
+	NoDiscovery bool        // Disable mDNS discovery (use ConnectDirect only)
+	TLS         *tls.Config // optional PQ-TLS 1.3; nil = plaintext
 }
 
 // NewNode creates a new ZAP node.
@@ -79,6 +82,7 @@ func NewNode(cfg NodeConfig) *Node {
 		serviceType: cfg.ServiceType,
 		port:        cfg.Port,
 		noDiscovery: cfg.NoDiscovery,
+		tlsCfg:      cfg.TLS,
 		conns:       make(map[string]*Conn),
 		handlers:    make(map[uint16]Handler),
 		ctx:         ctx,
@@ -90,11 +94,14 @@ func NewNode(cfg NodeConfig) *Node {
 // Start starts the node (discovery + listener).
 func (n *Node) Start() error {
 	// Start TCP listener
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", n.port))
+	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", n.port))
 	if err != nil {
 		return fmt.Errorf("failed to listen: %w", err)
 	}
-	n.listener = listener
+	if n.tlsCfg != nil {
+		ln = tls.NewListener(ln, n.tlsCfg)
+	}
+	n.listener = ln
 
 	// Accept connections
 	n.wg.Add(1)
@@ -545,6 +552,9 @@ func (n *Node) getOrConnect(peerID string) (*Conn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to %s: %w", addr, err)
 	}
+	if n.tlsCfg != nil {
+		netConn = tls.Client(netConn, n.tlsCfg)
+	}
 
 	// Send handshake (node ID as raw bytes)
 	{
@@ -683,6 +693,9 @@ func (n *Node) ConnectDirect(addr string) error {
 	netConn, err := net.DialTimeout("tcp", addr, 5*time.Second)
 	if err != nil {
 		return fmt.Errorf("failed to connect to %s: %w", addr, err)
+	}
+	if n.tlsCfg != nil {
+		netConn = tls.Client(netConn, n.tlsCfg)
 	}
 
 	// Send handshake

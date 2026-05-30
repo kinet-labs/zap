@@ -5,6 +5,11 @@
 // ZAP enables zero-copy reads - data can be accessed directly from the
 // underlying byte buffer without parsing or allocation.
 //
+// Transport security: set NodeConfig.TLS to a *tls.Config to wrap all
+// TCP connections with TLS. This supports PQ-TLS 1.3 when the Go runtime
+// and configured cipher suites provide post-quantum key exchange (e.g.
+// X25519Kyber768). When TLS is nil (the default), connections are plaintext.
+//
 // Wire Format:
 //
 //	┌─────────────────────────────────────────────────┐
@@ -39,6 +44,13 @@ const (
 
 	// Version of the ZAP format
 	Version = 1
+
+	// DefaultPort is the canonical TCP port for ZAP transport across the
+	// Kinet ecosystem. Like 80 means HTTP and 443 means HTTPS, 9999 means
+	// ZAP — every ZAP-hosting service binds this port; the DNS name (e.g.
+	// zap.kms.svc, zap.mpc.svc) disambiguates which service is on the
+	// other end.
+	DefaultPort = 9999
 
 	// Alignment for data segments
 	Alignment = 8
