@@ -1,6 +1,6 @@
 module github.com/kinet-labs/zap
 
-go 1.23.0
+go 1.26
 
 require github.com/kinet-labs/mdns v0.1.0-knt.0
 
