@@ -1,4 +1,4 @@
-// Package zap implements the Zero-copy Application Protocol (ZAP) for Kinetx.
+// Package zap implements the Zero-copy Application Protocol (ZAP) for Kinet.
 //
 // ZAP is a binary serialization format designed for high-performance
 // inter-process and network communication. Like Cap'n Proto and FlatBuffers,
